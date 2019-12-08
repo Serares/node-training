@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-
+// ideea generala este ca clientul trimite un request la server si serverul trimite un response la client
 const request = (req, res) => {
     const url = req.url;
     const method = req.method;
