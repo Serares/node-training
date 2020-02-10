@@ -4,7 +4,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const app = express();
-
+//i have some comments aroud code in this commit
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 
