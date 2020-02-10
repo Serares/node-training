@@ -1,35 +1,40 @@
 const fs = require('fs');
 const path = require('path');
-let p = path.join(path.dirname(process.mainModule.filename), 'data', 'products.json');
 
-const getProductsFromFile = (cb) => {
-    
-    fs.readFile(p, (err, fileContent) => {
-        if (err) {
-            return cb([])
-        };
-        return cb(JSON.parse(fileContent));
-    })
-}
+const p = path.join(
+  path.dirname(process.mainModule.filename),
+  'data',
+  'products.json'
+);
+
+const getProductsFromFile = cb => {
+  fs.readFile(p, (err, fileContent) => {
+    if (err) {
+      cb([]);
+    } else {
+      cb(JSON.parse(fileContent));
+    }
+  });
+};
 
 module.exports = class Product {
-    constructor(title) {
-        this.title = title;
-        this.p;
-    }
+  constructor(title, imageUrl, description, price) {
+    this.title = title;
+    this.imageUrl = imageUrl;
+    this.description = description;
+    this.price = price;
+  }
 
-    save() {
-        // create a data folder in the root folder and store a json file
-        getProductsFromFile(products => {
-            products.push(this);
-            fs.writeFile(p, JSON.stringify(products), err => {
-                console.log(err);
-            })
-        });
-    }
+  save() {
+    getProductsFromFile(products => {
+      products.push(this);
+      fs.writeFile(p, JSON.stringify(products), err => {
+        console.log(err);
+      });
+    });
+  }
 
-    static fetchAll(cb) {
-        // static so it can be called directly on the class 
-        getProductsFromFile(cb);
-    }
-}
+  static fetchAll(cb) {
+    getProductsFromFile(cb);
+  }
+};
