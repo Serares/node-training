@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const db = require('../util/database');
 
 const Cart = require('./cart');
 
@@ -29,49 +30,23 @@ module.exports = class Product {
   }
 
   save() {
-    getProductsFromFile(products => {
-      if (this.id) {
-        // if id exists it means the product will be edited
-        const existingProductIndex = products.findIndex(prod => prod.id === this.id);
-        const updatedProductsArr = [...products];
-        updatedProductsArr[existingProductIndex] = this;
-        fs.writeFile(p, JSON.stringify(updatedProductsArr), err => {
-          console.log(err);
-        })
-      } else {
-        this.id = Math.random().toString();
-        products.push(this);
-        fs.writeFile(p, JSON.stringify(products), err => {
-          console.log(err);
-        });
-      }
-
-    });
+    // use of question mark to be safe agains a SQLinjection
+    return db.execute(
+     'INSERT INTO products (title, price, imageUrl, description) VALUES (?, ? ,? ,?)',
+     [this.title, this.price, this.imageUrl, this.description]
+     )
   }
 
   static deleteById(id) {
 
-    getProductsFromFile(products => {
-      const product = products.find(prod=> prod.id === id);
-      const updatedProducts = products.filter(p => p.id !== id);
-      fs.writeFile(p, JSON.stringify(updatedProducts), err => {
-        if (!err) {
-          Cart.deleteProduct(id, product.price);
-        }
-      })
-    })
-
   }
 
-  static fetchAll(cb) {
-    getProductsFromFile(cb);
+  static fetchAll() {
+    return db.execute('SELECT * FROM products');
   }
 
-  static findById(id, cb) {
-    getProductsFromFile(products => {
-      const product = products.find(p => p.id === id);
-      cb(product);
-    })
+  static findById(id) {
+    return db.execute("SELECT * FROM products WHERE products.id = ?", [id] );
   }
 
 
