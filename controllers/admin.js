@@ -83,7 +83,8 @@ exports.getEditProduct = (req, res, next) => {
 };
 
 exports.getProducts = (req, res, next) => {
-  Product.findAll()
+  req.user
+    .getProducts()
     .then(prods => {
       res.render('admin/products', {
         prods: prods,
