@@ -1,7 +1,7 @@
 const Product = require('../models/product');
 
 exports.getProducts = (req, res, next) => {
-  Product.findAll()
+  Product.fetchAll()
     .then(products => {
       res.render('shop/product-list', {
         prods: products,
@@ -18,7 +18,7 @@ exports.getProducts = (req, res, next) => {
 exports.getProduct = (req, res, next) => {
   const prodId = req.params.id;
   // sequelize method to get single data;
-  Product.findByPk(prodId)
+  Product.findById(prodId)
     .then(product => {
       res.render('shop/product-detail', {
         path: '/products',
@@ -34,7 +34,7 @@ exports.getProduct = (req, res, next) => {
 
 exports.getIndex = (req, res, next) => {
 
-  Product.findAll()
+  Product.fetchAll()
     // destructuring the data from the DB
     .then(products => {
       res.render('shop/index', {
@@ -50,127 +50,51 @@ exports.getIndex = (req, res, next) => {
 };
 
 exports.getCart = (req, res, next) => {
-  req.user.getCart()
-    .then(cart => {
-      return cart.getProducts()
-        .then(products => {
-          res.render('shop/cart', {
-            path: '/cart',
-            pageTitle: 'Your Cart',
-            products: products
-          })
-        })
-        .catch(err => { console.log(err) });
-    })
-    .catch(err => {
-      console.log("Can't get cart", err);
-    })
-  /*
-  Cart.getCart(cart => {
-    Product.fetchAll(products => {
-      const cartProducts = [];
-      // gaseste toate produseele care se afla in cart.json
-      for (product of products) {
-        const cartProductData = cart.products.find(prod => prod.id === product.id);
-        if (cartProductData) {
-          cartProducts.push({ productData: product, qty: cartProductData.qty });
-        }
-      }
+  req.user
+    .getCart()
+    .then(products => {
       res.render('shop/cart', {
         path: '/cart',
         pageTitle: 'Your Cart',
-        products: cartProducts
+        products: products
       })
-
     })
-
-  })
-*/
-
+    .catch(err => { console.log(err) });
 };
 
 exports.postDeleteItem = (req, res, next) => {
   const prodId = req.body.productId;
-  req.user.getCart()
-    .then(cart => {
-      return cart.getProducts({ where: { id: prodId } })
+  req.user
+  .deleteItem(prodId)
+    .then(result=>{
+      res.status(300).redirect('/cart');
     })
-    .then(products => {
-      const product = products[0];
-      return product.cartItem.destroy();
-    })
-    .then(result => {
-      res.redirect('/cart');
-    })
-    .catch(err => console.log(err));
+    .catch(err=>console.log(err))
 }
 
 exports.postCart = (req, res, next) => {
   const prodId = req.body.productId;
-  let fetchedCart;
-  let newQuantity = 1;
-  req.user
-    .getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts({ where: { id: prodId } });
-    })
-    .then(products => {
-      let product;
-      if (products.length > 0) {
-        product = products[0];
-      }
-
-      if (product) {
-        // get quantity and change it
-        const oldQuantity = product.cartItem.quantity;
-        newQuantity = oldQuantity + 1;
-        return product;
-      }
-      return Product.findByPk(prodId);
-    })
+  Product.findById(prodId)
     .then(product => {
-      // magic method added by sequelize addProduct();
-      return fetchedCart.addProduct(product, { through: { quantity: newQuantity } });
+      req.user.addToCart(product);
+      res.status(300).redirect('/cart');
     })
-    .then(() => {
-      res.redirect('/cart');
-    })
-    .catch(err => console.log(err));
+    .catch(err => console.log(err))
 }
 
 exports.postOrder = (req, res, next) => {
   let fetchedCart;
-  req.user.getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts()
-    })
-    .then(products => {
-      return req.user.createOrder()
-        .then(order => {
-          order.addProducts(products.map(product => {
-            product.orderItem = { quantity: product.cartItem.quantity };
-            return product;
-          }));
-        })
-        .catch(err => console.log(err));
-    })
-    .then(result => {
-      return fetchedCart.setProducts(null);
-    })
-    .then(data => {
-
-      res.redirect('/orders');
-    })
-    .catch(err => {
-      console.log(err);
-    })
-}
+  req.user
+  .addOrder()
+  .then(result=>{
+    res.status(300).redirect('/orders')
+  })
+  .catch(err=>{console.log(err)});
+} 
 
 exports.getOrders = (req, res, next) => {
   // concept of eager loading
-  req.user.getOrders({include:  ['products']})
+  req.user.getOrders()
     .then(orders => {
       res.render('shop/orders', {
         path: '/orders',
@@ -184,9 +108,9 @@ exports.getOrders = (req, res, next) => {
 
 };
 
-exports.getCheckout = (req, res, next) => {
-  res.render('shop/checkout', {
-    path: '/checkout',
-    pageTitle: 'Checkout'
-  });
-};
+// exports.getCheckout = (req, res, next) => {
+//   res.render('shop/checkout', {
+//     path: '/checkout',
+//     pageTitle: 'Checkout'
+//   });
+// };

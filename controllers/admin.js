@@ -1,3 +1,4 @@
+
 const Product = require('../models/product');
 
 exports.getAddProduct = (req, res, next) => {
@@ -13,13 +14,10 @@ exports.postAddProduct = (req, res, next) => {
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
-  // some magic method by sequelize so there is no need to add the UserId to the product created
-  req.user.createProduct({
-    title: title,
-    price: price,
-    imageUrl: imageUrl,
-    description: description
-  })
+
+  const product = new Product(title, price, imageUrl, description, null , req.user._id);
+
+  product.save()
     .then(result => {
       console.log("Created product");
       res.status(303).redirect('/admin/products');
@@ -37,54 +35,51 @@ exports.postEditProduct = (req, res, next) => {
   const updatedPrice = req.body.price;
   const updatedImageUrl = req.body.imageUrl;
   const updatedDescription = req.body.description;
-  Product.findByPk(prodId)
-  .then(product=>{
-    product.title = updatedTitle;
-    product.description = updatedDescription;
-    product.price = updatedPrice;
-    product.imageUrl = updatedImageUrl;
-    // method from sequelize
-    // returns a promise
-    return product.save();
-  })
-  .then(data=>{
-    console.log("UPDATED PRODUCT");
-    res.status(301).redirect('/admin/products');
-  })
-  .catch(err=>{console.log(err)})
+
+  // need to create a mongodb ObjectID to updated the data
+  const product = new Product(
+    updatedTitle,
+    updatedPrice,
+    updatedImageUrl,
+    updatedDescription,
+    prodId);
+
+  product.save()
+    .then(data => {
+      console.log("UPDATED PRODUCT");
+      res.status(301).redirect('/admin/products');
+    })
+    .catch(err => { console.log(err) })
 }
 
 exports.getEditProduct = (req, res, next) => {
   const editMode = req.query.edit;
-  console.log(editMode);
   if (!editMode) {
     return res.redirect('/');
   }
+
   const prodId = req.params.id;
-  // sequelize methods beeing used here
-  req.user.getProducts({where:{id: prodId}})
-  // Product.findByPk(prodId)
+  Product.findById(prodId)
     .then(prod => {
-      const product = prod[0];
-      if (!product) {
+      if (!prod) {
         return res.redirect('/');
       }
       res.render('admin/edit-product', {
         pageTitle: 'Add Product',
         path: '/admin/edit-product',
         editing: editMode,
-        product: product
+        product: prod
       });
     })
-    .catch(err=>{
+    .catch(err => {
       console.log(err);
     })
 
 };
 
 exports.getProducts = (req, res, next) => {
-  req.user
-    .getProducts()
+  Product
+    .fetchAll()
     .then(prods => {
       res.render('admin/products', {
         prods: prods,
@@ -99,16 +94,13 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.findByPk(prodId)
-  .then(prod=>{
-    return prod.destroy()
-  })
-  .then(result=>{
-    console.log("DELETED PRODUCT");
-    res.redirect('/admin/products');
-  })
-  .catch(err=>{
-    console.log(err);
-  });
-  
+  Product.deleteById(prodId)
+    .then(() => {
+      console.log("DELETED PRODUCT");
+      res.redirect('/admin/products');
+    })
+    .catch(err => {
+      console.log(err);
+    });
+
 }

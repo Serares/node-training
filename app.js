@@ -4,13 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const errorController = require('./controllers/error');
-const sequelize = require('./util/database');
-const Product = require('./models/product');
+const mongoConnect = require('./util/database').mongoConnect;
 const User = require('./models/user');
-const Cart = require('./models/cart');
-const CartItem = require('./models/cart-item');
-const Order = require('./models/order');
-const OrderItem = require('./models/order-item');
 
 const app = express();
 
@@ -23,61 +18,20 @@ const shopRoutes = require('./routes/shop');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use((req,res,next)=>{
-    User.findByPk(1)
+    User.findById('5e6ce0adf6bae43b40387a75')
     .then(user=>{
-        // adding a sequelize object to the request
-        // so we can use sequelize methods on it like destroy()
-        req.user = user;
-        next();
+        req.user = new User(user.name, user.email, user.cart, user._id);
+        next()
     })
-    .catch()
-    ;
-})
+    .catch(err=>console.log(err));
+});
 
 app.use('/admin', adminRoutes);
 app.use(shopRoutes);
 
 app.use(errorController.get404);
 
-// make a relation between these tables
-Product.belongsTo(User, {constraints: true, onDelete: "CASCADE"});
-// optional to do this but it's more clear
-User.hasMany(Product);
-User.hasOne(Cart);
-Cart.belongsTo(User);
-Cart.belongsToMany(Product, {through: CartItem});
-Product.belongsToMany(Cart , {through: CartItem});
-Order.belongsTo(User);
-User.hasMany(Order);
-Order.belongsToMany(Product, {through: OrderItem});
-// have to call this at the end of the app to sync all the models
-// force:true used to overrite the tables
-sequelize
-// .sync({force:true})
-.sync()
-.then(result=>{
-    //this is done so that there is always a user available in the table
-    return User.findByPk(1);
+mongoConnect(()=>{
     app.listen(3000);
-})
-.then(user=>{
-    if(!user){
-        return User.create({name:"Max", email: "dummy@email.com"})
-    }
-    return user;
-})
-.then(user=>{
-    // console.log(user);
-    return user.createCart();
-    
-})
-.then(cart=>{
-    app.listen(3000);
-})
-.catch(err=>{
-    console.log(err);
 });
-
-
