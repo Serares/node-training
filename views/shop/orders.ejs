@@ -8,14 +8,14 @@
         <h1>Nothing there!</h1>
 
         <% } else {%>
-            <ul>
+            <ul class="orders">
                 <% orders.forEach(order =>{ %> 
-                <li>
-                    <h1># <%= order.id %></h1>
-                    <ul>
+                <li class="orders__item">
+                    <h1># <%= order._id %> - <a href="/orders/<%= order._id %>">Invoice</a></h1>
+                    <ul class="orders__products">
                         <% order.products.forEach(product => { %>
-                            <li>
-                                <%= product.title %> (<%=product.quantity %>)
+                            <li class="orders__products-item">
+                                <%= product.product.title %> (<%=product.quantity %>)
                             </li>
                         <% }); %>
                     </ul>

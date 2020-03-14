@@ -20,9 +20,12 @@
                     <h2 class="product__price">$<%= product.price %></h2>
                     <p class="product__description"><%= product.description %></p>
                 </div>
+                <%if(isAuthenticated) {%>
                 <div class="card__actions">
+                    <!-- because it's inside a for loop the variable has to be passed in the second parameter for the include -->
                     <%- include('../includes/add-to-cart.ejs' , {product:product}) %>
                 </div>
+                <% }%>
             </article>
             <% } %>
         </div>
