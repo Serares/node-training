@@ -15,8 +15,14 @@ exports.postAddProduct = (req, res, next) => {
   const price = req.body.price;
   const description = req.body.description;
 
-  const product = new Product(title, price, imageUrl, description, null , req.user._id);
-
+  const product = new Product({
+    title: title,
+    price: price,
+    description: description,
+    imageUrl: imageUrl,
+    userId: req.user
+  });
+  // save method is added by mongoose
   product.save()
     .then(result => {
       console.log("Created product");
@@ -37,14 +43,14 @@ exports.postEditProduct = (req, res, next) => {
   const updatedDescription = req.body.description;
 
   // need to create a mongodb ObjectID to updated the data
-  const product = new Product(
-    updatedTitle,
-    updatedPrice,
-    updatedImageUrl,
-    updatedDescription,
-    prodId);
-
-  product.save()
+  Product.findById(prodId)
+    .then(product => {
+      product.title = updatedTitle;
+      product.price = updatedPrice;
+      product.description = updatedDescription;
+      product.imageUrl = updatedImageUrl;
+      return product.save();
+    })
     .then(data => {
       console.log("UPDATED PRODUCT");
       res.status(301).redirect('/admin/products');
@@ -59,6 +65,7 @@ exports.getEditProduct = (req, res, next) => {
   }
 
   const prodId = req.params.id;
+  //method provided by mongoose
   Product.findById(prodId)
     .then(prod => {
       if (!prod) {
@@ -79,7 +86,10 @@ exports.getEditProduct = (req, res, next) => {
 
 exports.getProducts = (req, res, next) => {
   Product
-    .fetchAll()
+    .find()
+    // magic methods whatever
+    // .select('title price -_id')
+    // .populate('userId', 'name')
     .then(prods => {
       res.render('admin/products', {
         prods: prods,
@@ -94,7 +104,8 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.deleteById(prodId)
+  //mongoose provided magic method
+  Product.findByIdAndRemove(prodId)
     .then(() => {
       console.log("DELETED PRODUCT");
       res.redirect('/admin/products');
