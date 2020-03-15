@@ -6,8 +6,9 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
-
-const MongoURI = `mongodb+srv://rares:${pass()}@cluster0-xyshh.mongodb.net/shop?retryWrites=true&w=majority`;
+const csurf = require('csurf');
+const flash = require('connect-flash');
+const MongoURI = `mongodb+srv://rares:${pass()}@cluster0-xyshh.mongodb.net/shop`;
 const User = require('./models/user');
 
 
@@ -19,6 +20,7 @@ const store = new MongoDBStore({
   uri: MongoURI,
   collection: 'sessions'
 });
+const csrfProtection = csurf();
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
@@ -38,6 +40,10 @@ app.use(session({
   cookie: { httpOnly: true }
 }));
 
+//passing csurf object as a middleware for express to use
+app.use(csrfProtection);
+app.use(flash());
+
 //we need to add this middleware
 app.use((req, res, next) => {
   //if there is no authentication then just ignore this middleware return next()
@@ -51,6 +57,13 @@ app.use((req, res, next) => {
       next();
     })
     .catch(err => console.log(err));
+});
+
+app.use((req, res, next) => {
+  // all rednerd views get thoes variables
+  res.locals.isAuthenticated = req.session.isLoggedIn;
+  res.locals.csrfToken = req.csrfToken();
+  next();
 })
 
 app.use('/admin', adminRoutes);

@@ -1,3 +1,5 @@
+const bcrypt = require('bcryptjs');
+
 const User = require('../models/user');
 
 exports.getLogin = (req, res, next) => {
@@ -11,31 +13,90 @@ exports.getLogin = (req, res, next) => {
   res.render('auth/login', {
     path: '/login',
     pageTitle: 'Login',
-    isAuthenticated: req.session.isLoggedIn
+    //get the key set when redirected
+    errorMessage: req.flash('error')
+  });
+};
+
+exports.getSignup = (req, res, next) => {
+  res.render('auth/signup', {
+    path: '/signup',
+    pageTitle: 'Signup',
+    isAuthenticated: false
   });
 };
 
 exports.postLogin = (req, res, next) => {
-  User.findById('5e6d351aefb2580738d40b5e')
+  const email = req.body.email;
+  const password = req.body.password;
+  // check after email
+  User.findOne({ email: email })
     .then(user => {
-      console.log('User found');
-      // here we are adding the auth with the user object so it can be used in other controllers
-      req.session.isLoggedIn = true;
-      req.session.user = user;
-      req.session.save((err)=>{
-        // to make sure session exists when redirecting
-        console.log(err);
-        res.redirect('/');
-      })
+      if (!user) {
+        //redirect with a message using flash
+        req.flash('error', 'Invalid email or password.');
+        return res.redirect('/login');
+      }
+      //use bcrypt to decrypt the password found in the db
+      // bcrypt .compare() goes to then if pass matches or not
+      // in catch only for an error
+      bcrypt
+        .compare(password, user.password)
+        .then(doMatch => {
+          if (doMatch) {
+            req.session.isLoggedIn = true;
+            req.session.user = user;
+            // here we are adding the auth with the user object so it can be used in other controllers
+            return req.session.save(err => {
+              console.log(err);
+              res.redirect('/');
+            });
+          }
+          res.redirect('/login');
+        })
+        .catch(err => {
+          console.log(err);
+          res.redirect('/login');
+        });
     })
     .catch(err => console.log(err));
-  //asa setezi un session
-  // req.session.isLoggedIn = true;
 };
 
-exports.postLogout = (req,res,next)=>{
+exports.postSignup = (req, res, next) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const confirmPassword = req.body.confirmPassword;
+  //search a user for the same email
+  User.findOne({ email: email })
+    .then(userDoc => {
+      if (userDoc) {
+        // if a user with the same email existrs then redirect to signup
+        return res.redirect('/signup');
+      }
+      //encrypting the password with bcrypt package and this returns a promise
+      return bcrypt
+        .hash(password, 12)
+        .then(hashedPassword => {
+          // here the user is created with the hased password
+          const user = new User({
+            email: email,
+            password: hashedPassword,
+            cart: { items: [] }
+          });
+          return user.save();
+        })
+        .then(result => {
+          res.redirect('/login');
+        });
+    })
+    .catch(err => {
+      console.log(err);
+    });
+};
 
-  req.session.destroy((err)=>{
+exports.postLogout = (req, res, next) => {
+
+  req.session.destroy((err) => {
     // deleting the session from mongodb and cookie from browser
     console.log(err);
     res.redirect('/');
