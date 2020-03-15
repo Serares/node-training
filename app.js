@@ -13,8 +13,8 @@ const User = require('./models/user');
 
 const errorController = require('./controllers/error');
 
-
 const app = express();
+// setting the communication with database and session
 const store = new MongoDBStore({
   uri: MongoURI,
   collection: 'sessions'
@@ -29,6 +29,7 @@ const authRoutes = require('./routes/auth');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+//configuration for session and cookies
 app.use(session({
   secret: 'some secret',
   resave: false,
