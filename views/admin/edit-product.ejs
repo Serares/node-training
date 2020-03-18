@@ -7,6 +7,9 @@
     <%- include('../includes/navigation.ejs') %>
     <!-- se foloseste si pentru add product si pentru edit product -->
     <main>
+        <% if (errorMessage) { %>
+        <div class="user-message user-message--error"><%= errorMessage %></div>
+        <% } %>
         <form class="product-form" action="/admin/<% if (editing) { %>edit-product<% } else { %>add-product<% } %>"
             method="POST">
             <div class="form-control">
@@ -29,14 +32,13 @@
             <div class="form-control">
                 <label for="description">Description</label>
                 <textarea class="<%= validationErrors.find(e => e.param === 'description') ? 'invalid' : '' %>"
-                    name="description" 
-                    id="description" 
+                    name="description" id="description"
                     rows="5"><% if (editing || hasError) { %><%= product.description %><% } %></textarea>
             </div>
-
             <% if (editing) { %>
-            <input type="hidden" value="<%= product._id %>" name="productId" />
+            <input type="hidden" value="<%= product._id %>" name="productId">
             <% } %>
+
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button class="btn" type="submit"><% if (editing) { %>Update Product<% } else { %>Add
                 Product<% } %></button>

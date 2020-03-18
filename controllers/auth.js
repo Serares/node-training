@@ -110,8 +110,18 @@ exports.postLogin = (req, res, next) => {
               console.log(err);
               res.redirect('/');
             });
+          } else {
+            return res.status(422).render('auth/login', {
+              path: '/login',
+              pageTitle: 'Login',
+              errorMessage: "Invalid email or password",
+              oldInput: {
+                email: email,
+                password: password
+              },
+              validationErrors: errors.array()
+            });
           }
-          res.redirect('/login');
         })
         .catch(err => {
           console.log(err);
@@ -172,7 +182,7 @@ exports.postSignup = (req, res, next) => {
       //   html: '<h1>Salutare</h1>'
       // })
     })
-    .catch(err=>{console.log(err)});
+    .catch(err => { console.log(err) });
   // })
   // .catch(err => {
   //   console.log(err);

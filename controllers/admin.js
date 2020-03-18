@@ -1,11 +1,16 @@
 const Product = require('../models/product');
+const { validationResult } = require('express-validator/check');
+
 
 exports.getAddProduct = (req, res, next) => {
+
   res.render('admin/edit-product', {
     pageTitle: 'Add Product',
     path: '/admin/add-product',
     editing: false,
-    isAuthenticated: req.session.isLoggedIn
+    hasError: false,
+    errorMessage: null,
+    validationErrors: []
   });
 };
 
@@ -23,6 +28,7 @@ exports.postAddProduct = (req, res, next) => {
       path: '/admin/edit-product',
       editing: false,
       hasError: true,
+      //needed because when redirected back to the same page, fields WON'T be empty
       product: {
         title: title,
         imageUrl: imageUrl,
@@ -30,6 +36,7 @@ exports.postAddProduct = (req, res, next) => {
         description: description
       },
       errorMessage: errors.array()[0].msg,
+      //trimiti toate erorile intr-un array de obiecte pe care le verifici in view pe fiecare input
       validationErrors: errors.array()
     });
   }
@@ -50,7 +57,28 @@ exports.postAddProduct = (req, res, next) => {
       res.redirect('/admin/products');
     })
     .catch(err => {
-      console.log(err);
+      // return res.status(500).render('admin/edit-product', {
+      //   pageTitle: 'Add Product',
+      //   path: '/admin/add-product',
+      //   editing: false,
+      //   hasError: true,
+      //   product: {
+      //     title: title,
+      //     imageUrl: imageUrl,
+      //     price: price,
+      //     description: description
+      //   },
+      //   errorMessage: 'Database operation failed, please try again.',
+      //   validationErrors: []
+      // });
+      // res.redirect('/500');
+      /**
+       * The thing here is that
+       * when using next(error) it will be cought in the error handler middleware from app.js
+       */
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -72,7 +100,11 @@ exports.getEditProduct = (req, res, next) => {
         product: product
       });
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.postEditProduct = (req, res, next) => {
@@ -98,7 +130,11 @@ exports.postEditProduct = (req, res, next) => {
       console.log('UPDATED PRODUCT!');
       res.redirect('/admin/products');
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.getProducts = (req, res, next) => {
@@ -115,16 +151,24 @@ exports.getProducts = (req, res, next) => {
         isAuthenticated: req.session.isLoggedIn
       });
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
   // Product.findByIdAndRemove(prodId)
-  Product.deleteOne({_id: prodId, userId: req.user._id})
+  Product.deleteOne({ _id: prodId, userId: req.user._id })
     .then(() => {
       console.log('DESTROYED PRODUCT');
       res.redirect('/admin/products');
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
