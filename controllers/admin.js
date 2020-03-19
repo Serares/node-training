@@ -1,6 +1,6 @@
 const Product = require('../models/product');
 const { validationResult } = require('express-validator/check');
-
+const fileHelper = require('../util/file');
 
 exports.getAddProduct = (req, res, next) => {
 
@@ -16,16 +16,33 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = (req, res, next) => {
   const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
+  // taking the file from req, file is added by multerF
+  const image = req.file;
   const price = req.body.price;
   const description = req.body.description;
-  const errors = validationResult(req);
+  console.log("POST ADD PRODUCT", image);
+  if (!image) {
+    return res.status(422).render('admin/edit-product', {
+      pageTitle: 'Add Product',
+      path: '/admin/add-product',
+      editing: false,
+      hasError: true,
+      product: {
+        title: title,
+        price: price,
+        description: description
+      },
+      errorMessage: 'Attached file is not an image.',
+      validationErrors: []
+    });
+  }
 
+  const errors = validationResult(req);
   if (!errors.isEmpty()) {
     console.log(errors.array());
     return res.status(422).render('admin/edit-product', {
       pageTitle: 'Add Product',
-      path: '/admin/edit-product',
+      path: '/admin/add-product',
       editing: false,
       hasError: true,
       //needed because when redirected back to the same page, fields WON'T be empty
@@ -41,6 +58,11 @@ exports.postAddProduct = (req, res, next) => {
     });
   }
 
+  //image.path is also added by multer
+  //but it's stored with backslash , witch is wrong
+  let imageUrl = image.path;
+  imageUrl = imageUrl.replace(/\\/g,"/");
+  
   const product = new Product({
     title: title,
     price: price,
@@ -76,9 +98,10 @@ exports.postAddProduct = (req, res, next) => {
        * The thing here is that
        * when using next(error) it will be cought in the error handler middleware from app.js
        */
-      const error = new Error(err);
-      error.httpStatusCode = 500;
-      return next(error);
+      console.log(err);
+      // const error = new Error(err);
+      // error.httpStatusCode = 500;
+      // return next(error);
     });
 };
 
@@ -111,8 +134,26 @@ exports.postEditProduct = (req, res, next) => {
   const prodId = req.body.productId;
   const updatedTitle = req.body.title;
   const updatedPrice = req.body.price;
-  const updatedImageUrl = req.body.imageUrl;
+  const image = req.file;
   const updatedDesc = req.body.description;
+
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).render('admin/edit-product', {
+      pageTitle: 'Edit Product',
+      path: '/admin/edit-product',
+      editing: true,
+      hasError: true,
+      product: {
+        title: updatedTitle,
+        price: updatedPrice,
+        description: updatedDesc,
+        _id: prodId
+      },
+      errorMessage: errors.array()[0].msg,
+      validationErrors: errors.array()
+    });
+  }
   // the edit of a product can be done only by a user that created the product
   Product.findById(prodId)
     .then(product => {
@@ -123,12 +164,15 @@ exports.postEditProduct = (req, res, next) => {
       product.title = updatedTitle;
       product.price = updatedPrice;
       product.description = updatedDesc;
-      product.imageUrl = updatedImageUrl;
-      return product.save();
-    })
-    .then(result => {
-      console.log('UPDATED PRODUCT!');
-      res.redirect('/admin/products');
+      // product.imageUrl = updatedImageUrl;
+      if (image) {
+        //means the user added a new image
+        product.imageUrl = image.path;
+      }
+      return product.save().then(result => {
+        console.log('UPDATED PRODUCT!');
+        res.redirect('/admin/products');
+      });
     })
     .catch(err => {
       const error = new Error(err);
@@ -161,7 +205,24 @@ exports.getProducts = (req, res, next) => {
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
   // Product.findByIdAndRemove(prodId)
-  Product.deleteOne({ _id: prodId, userId: req.user._id })
+  // Product.deleteOne({ _id: prodId, userId: req.user._id })
+  //   .then(() => {
+  //     console.log('DESTROYED PRODUCT');
+  //     res.redirect('/admin/products');
+  //   })
+  //   .catch(err => {
+  //     const error = new Error(err);
+  //     error.httpStatusCode = 500;
+  //     return next(error);
+  //   });
+  Product.findById(prodId)
+    .then(product => {
+      if (!product) {
+        return next(new Error('Product not found.'));
+      }
+      fileHelper.deleteFile(product.imageUrl);
+      return Product.deleteOne({ _id: prodId, userId: req.user._id });
+    })
     .then(() => {
       console.log('DESTROYED PRODUCT');
       res.redirect('/admin/products');

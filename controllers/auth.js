@@ -151,6 +151,7 @@ exports.postSignup = (req, res, next) => {
     });
   }
   //search a user for the same email
+  // doing the email check in the route
   // User.findOne({ email: email })
   //   .then(userDoc => {
   //     if (userDoc) {
@@ -192,9 +193,10 @@ exports.postSignup = (req, res, next) => {
 exports.postLogout = (req, res, next) => {
 
   req.session.destroy((err) => {
+    console.log('Deleting Session');
     // deleting the session from mongodb and cookie from browser
     console.log(err);
-    res.redirect('/');
+    res.redirect('/login');
   })
 
 }

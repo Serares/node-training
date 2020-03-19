@@ -19,25 +19,24 @@ router.get('/edit-product/:id', isAuth, adminController.getEditProduct);
 
 // /admin/add-product => POST
 //making more validations in here and sanitization with .trim()
-router.post('/add-product', [
-    body('title')
+router.post(
+    '/add-product',
+    [
+      body('title')
         .isString()
         .isLength({ min: 3 })
         .trim(),
-    body('imageUrl').isURL(),
-    body('price').isFloat(),
-    body('description')
-        .isLength({ min: 5, max: 400 })
-        .trim()
-],
-    isAuth, adminController.postAddProduct);
+      body('price').isFloat()
+    ],
+    isAuth,
+    adminController.postAddProduct
+  );
 
 router.post('/edit-product', [
     body('title')
         .isString()
         .isLength({ min: 3 })
         .trim(),
-    body('imageUrl').isURL(),
     body('price').isFloat(),
     body('description')
         .isLength({ min: 5, max: 400 })

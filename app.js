@@ -10,7 +10,7 @@ const csurf = require('csurf');
 const flash = require('connect-flash');
 const MongoURI = `mongodb+srv://rares:${pass()}@cluster0-xyshh.mongodb.net/shop`;
 const User = require('./models/user');
-
+const multer = require('multer');
 
 const errorController = require('./controllers/error');
 
@@ -20,6 +20,27 @@ const store = new MongoDBStore({
   uri: MongoURI,
   collection: 'sessions'
 });
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    cb(null, new Date().getTime() + '-' + file.originalname);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  console.log(file);
+  if (
+    file.mimetype === 'image/png' ||
+    file.mimetype === 'image/jpg' ||
+    file.mimetype === 'image/jpeg'
+  ) {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
 const csrfProtection = csurf();
 
 app.set('view engine', 'ejs');
@@ -30,14 +51,19 @@ const shopRoutes = require('./routes/shop');
 const authRoutes = require('./routes/auth');
 
 app.use(bodyParser.urlencoded({ extended: false }));
+// configurare multer ca sa parseze imagini
+app.use(
+  multer({ storage: fileStorage, fileFilter: fileFilter, onError: function(err,next) {console.log(err); next() } }).single('image')
+);
 app.use(express.static(path.join(__dirname, 'public')));
+//adding the serving of static images
+app.use('/images', express.static(path.join(__dirname, 'images')));
 //configuration for session and cookies
 app.use(session({
-  secret: 'some secret',
+  secret: 'MySecret',
   resave: false,
   saveUninitialized: false,
-  store: store,
-  cookie: { httpOnly: true }
+  store: store
 }));
 
 //passing csurf object as a middleware for express to use
@@ -79,13 +105,13 @@ app.use(errorController.get404);
 app.get('/500', errorController.get500);
 
 app.use((error, req, res, next) => {
-
+  console.log(error);
   // res.status(error.httpStatusCode).render(...);
   // res.redirect('/500');
   res.status(500).render('500', {
     pageTitle: 'Error!',
     path: '/500',
-    isAuthenticated: req.session.isLoggedIn
+    isAuthenticated: false
   });
 
 });
