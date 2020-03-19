@@ -99,9 +99,9 @@ exports.postAddProduct = (req, res, next) => {
        * when using next(error) it will be cought in the error handler middleware from app.js
        */
       console.log(err);
-      // const error = new Error(err);
-      // error.httpStatusCode = 500;
-      // return next(error);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
