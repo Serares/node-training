@@ -1,83 +1,123 @@
 const path = require('path');
+const pass = require('./config/db_pass').mongoPass;
 
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const session = require('express-session');
+const MongoDBStore = require('connect-mongodb-session')(session);
+const csurf = require('csurf');
+const flash = require('connect-flash');
+const MongoURI = `mongodb+srv://rares:${pass()}@cluster0-xyshh.mongodb.net/shop`;
+const User = require('./models/user');
+const multer = require('multer');
 
 const errorController = require('./controllers/error');
-const sequelize = require('./util/database');
-const Product = require('./models/product');
-const User = require('./models/user');
-const Cart = require('./models/cart');
-const CartItem = require('./models/cart-item');
-const Order = require('./models/order');
-const OrderItem = require('./models/order-item');
 
 const app = express();
+// setting the communication with database and session
+const store = new MongoDBStore({
+  uri: MongoURI,
+  collection: 'sessions'
+});
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    cb(null, new Date().getTime() + '-' + file.originalname);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  console.log(file);
+  if (
+    file.mimetype === 'image/png' ||
+    file.mimetype === 'image/jpg' ||
+    file.mimetype === 'image/jpeg'
+  ) {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+const csrfProtection = csurf();
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 
 const adminRoutes = require('./routes/admin');
 const shopRoutes = require('./routes/shop');
-
+const authRoutes = require('./routes/auth');
 
 app.use(bodyParser.urlencoded({ extended: false }));
+// configurare multer ca sa parseze imagini
+app.use(
+  multer({ storage: fileStorage, fileFilter: fileFilter, onError: function(err,next) {console.log(err); next() } }).single('image')
+);
 app.use(express.static(path.join(__dirname, 'public')));
+//adding the serving of static images
+app.use('/images', express.static(path.join(__dirname, 'images')));
+//configuration for session and cookies
+app.use(session({
+  secret: 'MySecret',
+  resave: false,
+  saveUninitialized: false,
+  store: store
+}));
 
-app.use((req,res,next)=>{
-    User.findByPk(1)
-    .then(user=>{
-        // adding a sequelize object to the request
-        // so we can use sequelize methods on it like destroy()
-        req.user = user;
-        next();
-    })
-    .catch()
-    ;
-})
+//passing csurf object as a middleware for express to use
+app.use(csrfProtection);
+app.use(flash());
 
-app.use('/admin', adminRoutes);
-app.use(shopRoutes);
-
-app.use(errorController.get404);
-
-// make a relation between these tables
-Product.belongsTo(User, {constraints: true, onDelete: "CASCADE"});
-// optional to do this but it's more clear
-User.hasMany(Product);
-User.hasOne(Cart);
-Cart.belongsTo(User);
-Cart.belongsToMany(Product, {through: CartItem});
-Product.belongsToMany(Cart , {through: CartItem});
-Order.belongsTo(User);
-User.hasMany(Order);
-Order.belongsToMany(Product, {through: OrderItem});
-// have to call this at the end of the app to sync all the models
-// force:true used to overrite the tables
-sequelize
-// .sync({force:true})
-.sync()
-.then(result=>{
-    //this is done so that there is always a user available in the table
-    return User.findByPk(1);
-    app.listen(3000);
-})
-.then(user=>{
-    if(!user){
-        return User.create({name:"Max", email: "dummy@email.com"})
-    }
-    return user;
-})
-.then(user=>{
-    // console.log(user);
-    return user.createCart();
-    
-})
-.then(cart=>{
-    app.listen(3000);
-})
-.catch(err=>{
-    console.log(err);
+app.use((req, res, next) => {
+  // all rendered views get thoes variables
+  res.locals.isAuthenticated = req.session.isLoggedIn;
+  res.locals.csrfToken = req.csrfToken();
+  next();
 });
 
 
+//we need to add this middleware
+app.use((req, res, next) => {
+  //if there is no authentication then just ignore this middleware return next()
+  if (!req.session.user) {
+    return next()
+  }
+  // if there is a user in session then get it's ID and add it in req.user so we can use it's mongoose object with all methods
+  User.findById(req.session.user._id)
+    .then(user => {
+      if(!user){
+        return next();
+      }
+      req.user = user;
+      next();
+    })
+    .catch(err => console.log(err));
+});
+
+
+app.use('/admin', adminRoutes);
+app.use(shopRoutes);
+app.use(authRoutes);
+
+app.use(errorController.get404);
+app.get('/500', errorController.get500);
+
+app.use((error, req, res, next) => {
+  console.log(error);
+  // res.status(error.httpStatusCode).render(...);
+  // res.redirect('/500');
+  res.status(500).render('500', {
+    pageTitle: 'Error!',
+    path: '/500',
+    isAuthenticated: false
+  });
+
+});
+
+mongoose.connect(MongoURI)
+  .then(res => {
+    app.listen(3000);
+  })
+  .catch(err => console.log(err));
