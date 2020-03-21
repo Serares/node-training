@@ -28,13 +28,14 @@
                                 </div>
                                 <div class="card__actions">
                                     <a href="/admin/edit-product/<%=product._id %>?edit=true" class="btn">Edit</a>
-                                    <form action="/admin/delete-product" method="POST">
+                                    <!-- this was a request done with browsers POST method but now i can do it with async js -->
+                                    <!-- <form action="/admin/delete-product" method="POST"> -->
                                         <!-- every post request need to have the _csrf token for the middleware check -->
                                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                         <!-- Trimiti ID-ul produsului printr-un input hidden -->
                                         <input type="hidden" value="<%= product._id %>" name="productId"/>
-                                        <button class="btn" type="submit">Delete</button>
-                                    </form>
+                                        <button class="btn" type="button" onclick="deleteProduct(this)">Delete</button>
+                                    <!-- </form> -->
 
                                 </div>
                             </article>
@@ -44,4 +45,5 @@
                         <h1>No Products Found!</h1>
                         <% } %>
             </main>
+            <script src="/js/requests.js"></script>
             <%- include('../includes/end.ejs') %>
