@@ -1,5 +1,7 @@
 const path = require('path');
 const pass = require('./config/db_pass').mongoPass;
+const fs = require('fs');
+const https = require('https');
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -8,7 +10,13 @@ const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
 const csurf = require('csurf');
 const flash = require('connect-flash');
-const MongoURI = `mongodb+srv://rares:${pass()}@cluster0-xyshh.mongodb.net/shop`;
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
+
+//globally avail in the node app 'process'
+const MongoURI = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0-xyshh.mongodb.net/${process.env.MONGO_DB}`;
+
 const User = require('./models/user');
 const multer = require('multer');
 
@@ -42,6 +50,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 const csrfProtection = csurf();
+// const privateKey = fs.readFileSync('server.key');
+// const certificate = fs.readFileSync('server.cert');
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
@@ -50,10 +60,21 @@ const adminRoutes = require('./routes/admin');
 const shopRoutes = require('./routes/shop');
 const authRoutes = require('./routes/auth');
 
+const accessLogStream = fs.createWriteStream(
+  path.join(__dirname, 'access.log'),
+  { flags: 'a' })
+
+app.use(morgan('combined', {stream: accessLogStream}));
+// helmet is used to set secure headers
+// overall protect the app in production
+app.use(helmet());
+// used to compress front end assets css js
+app.use(compression());
+
 app.use(bodyParser.urlencoded({ extended: false }));
 // configurare multer ca sa parseze imagini
 app.use(
-  multer({ storage: fileStorage, fileFilter: fileFilter, onError: function(err,next) {console.log(err); next() } }).single('image')
+  multer({ storage: fileStorage, fileFilter: fileFilter, onError: function (err, next) { console.log(err); next() } }).single('image')
 );
 app.use(express.static(path.join(__dirname, 'public')));
 //adding the serving of static images
@@ -87,7 +108,7 @@ app.use((req, res, next) => {
   // if there is a user in session then get it's ID and add it in req.user so we can use it's mongoose object with all methods
   User.findById(req.session.user._id)
     .then(user => {
-      if(!user){
+      if (!user) {
         return next();
       }
       req.user = user;
@@ -118,6 +139,7 @@ app.use((error, req, res, next) => {
 
 mongoose.connect(MongoURI)
   .then(res => {
-    app.listen(3000);
+    app.listen(process.env.PORT || 3000);
+    // https.createServer({key: privateKey, cert: certificate},app).listen(process.env.PORT || 3000);
   })
   .catch(err => console.log(err));

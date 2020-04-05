@@ -27,7 +27,7 @@ router.get('/checkout/success', shopController.getCheckoutSuccess);
 router.get('/checkout/cancel', shopController.getCheckout);
 
 
-router.get('/orders:orderId', shopController.getInvoice);
+router.get('/orders/:orderId', shopController.getInvoice);
 
 router.post('/cart-delete-item',isAuth, shopController.postDeleteCartItem);
 

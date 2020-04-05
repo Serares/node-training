@@ -2,8 +2,9 @@ const Product = require('../models/product');
 const Order = require('../models/order');
 const fs = require('fs');
 const path = require('path');
-const stripeKey = require('../config/db_pass').stripeKey();
-const stripe = require('stripe')(stripeKey);
+// const stripeKey = require('../config/db_pass').stripeKey();
+
+const stripe = require('stripe')(process.env.STRIPE_KEY);
 const PDFDocument = require('pdfkit');
 const ITEMS_PER_PAGE = 2;
 
@@ -77,7 +78,7 @@ exports.getCheckout = (req, res, next) => {
   let total = 0;
 
   req.user
-  // here we populate the productId field
+    // here we populate the productId field
     .populate('cart.items.productId')
     .execPopulate()
     .then(user => {
@@ -226,7 +227,7 @@ exports.getOrders = (req, res, next) => {
 
 exports.getInvoice = (req, res, next) => {
   const orderId = req.params.orderId;
-  //TODO invoce is not working , investigate 
+  //invoces folder has to exist before FS tried to add something to it
   Order.findById(orderId)
     .then(order => {
       if (!order) {
@@ -235,8 +236,11 @@ exports.getInvoice = (req, res, next) => {
       if (order.user.userId.toString() !== req.user._id.toString()) {
         return next(new Error('Unauthorized'));
       }
-      const invoiceName = 'invoice-' + orderId + '.pdf';
-      const invoicePath = path.join('data', 'invoices', invoiceName);
+
+      let invoiceName, invoicePath;
+      invoiceName = 'invoice-' + orderId + '.pdf';
+      invoicePath = path.join('data', 'invoices', invoiceName);
+
 
       const pdfDoc = new PDFDocument();
       res.setHeader('Content-Type', 'application/pdf');
